@@ -74,7 +74,8 @@ inline void FPNGEFillOptions(struct FPNGEOptions *options, int level,
     break;
   case 5:
     options->huffman_sample = 23;
-    // fall through
+    options->predictor = 6;
+    break;
   default:
     options->predictor = 6;
     break;
