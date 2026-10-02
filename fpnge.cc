@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "fpnge.h"
+#include "internal/arch.h"
 #include <algorithm>
 #include <assert.h>
 #include <stdint.h>
@@ -34,20 +35,18 @@
 #define FORCE_INLINE __attribute__((always_inline)) inline
 #endif
 
-#if defined(__x86_64__) || defined(__amd64__) || defined(__LP64) ||            \
-    defined(_M_X64) || defined(_M_AMD64) ||                                    \
-    (defined(_WIN64) && !defined(_M_ARM64))
-#define PLATFORM_AMD64 1
-#endif
-
 #if !defined(FPNGE_USE_PEXT)
-#if defined(__BMI2__) && defined(PLATFORM_AMD64) &&                            \
+#if defined(__BMI2__) && FPNGE_ARCH_X86_64 &&                            \
     !defined(__tune_znver1__) && !defined(__tune_znver2__) &&                  \
     !defined(__tune_bdver4__)
 #define FPNGE_USE_PEXT 1
 #else
 #define FPNGE_USE_PEXT 0
 #endif
+#endif
+
+#if !FPNGE_ARCH_X86_64
+#error "Current FPNGE SIMD backend supports x86-64 only; AArch64/NEON is not implemented yet"
 #endif
 
 #ifdef __AVX2__
@@ -85,7 +84,19 @@
 #error Requires SSE4.1 support minium
 #endif
 
+#ifdef __PCLMUL__
+#include "internal/crc_x86.h"
+#else
+#include "internal/crc_portable.h"
+#endif
+
 namespace {
+
+#ifdef __PCLMUL__
+using Crc32 = fpnge_internal::Crc32X86;
+#else
+using Crc32 = fpnge_internal::Crc32Portable;
+#endif
 
 alignas(16) constexpr uint8_t kBitReverseNibbleLookup[16] = {
     0b0000, 0b1000, 0b0100, 0b1100, 0b0010, 0b1010, 0b0110, 0b1110,
@@ -404,200 +415,6 @@ static void WriteHuffmanCode(const HuffmanTable &table,
   }
   writer->Write(4, 0b1000);
 }
-
-#ifdef __PCLMUL__
-} // namespace
-#include <wmmintrin.h>
-namespace {
-alignas(32) static const uint8_t pshufb_shf_table[] = {
-    0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8a,
-    0x8b, 0x8c, 0x8d, 0x8e, 0x8f, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
-    0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f};
-
-class Crc32 {
-  __m128i x0, x1, x2, x3;
-
-  static inline __m128i double_xor(__m128i a, __m128i b, __m128i c) {
-#ifdef __AVX512VL__
-    return _mm_ternarylogic_epi32(a, b, c, 0x96);
-#else
-    return _mm_xor_si128(_mm_xor_si128(a, b), c);
-#endif
-  }
-  static inline __m128i do_one_fold(__m128i src, __m128i data) {
-    const auto k1k2 = _mm_set_epi32(1, 0x54442bd4, 1, 0xc6e41596);
-    return double_xor(_mm_clmulepi64_si128(src, k1k2, 0x01),
-                      _mm_clmulepi64_si128(src, k1k2, 0x10), data);
-  }
-
-public:
-  Crc32() {
-    x0 = _mm_cvtsi32_si128(0x9db42487);
-    x1 = _mm_setzero_si128();
-    x2 = _mm_setzero_si128();
-    x3 = _mm_setzero_si128();
-  }
-  size_t update(const unsigned char *__restrict data, size_t len) {
-    auto amount = len & ~63;
-    for (size_t i = 0; i < amount; i += 64) {
-      x0 = do_one_fold(x0, _mm_loadu_si128((__m128i *)(data + i)));
-      x1 = do_one_fold(x1, _mm_loadu_si128((__m128i *)(data + i + 0x10)));
-      x2 = do_one_fold(x2, _mm_loadu_si128((__m128i *)(data + i + 0x20)));
-      x3 = do_one_fold(x3, _mm_loadu_si128((__m128i *)(data + i + 0x30)));
-    }
-    return amount;
-  }
-  uint32_t update_final(const unsigned char *__restrict data, size_t len) {
-    if (len >= 64) {
-      update(data, len);
-      data += len & ~63;
-      len &= 63;
-    }
-
-    if (len >= 48) {
-      auto t3 = x3;
-      x3 = do_one_fold(x2, _mm_loadu_si128((__m128i *)data + 2));
-      x2 = do_one_fold(x1, _mm_loadu_si128((__m128i *)data + 1));
-      x1 = do_one_fold(x0, _mm_loadu_si128((__m128i *)data));
-      x0 = t3;
-    } else if (len >= 32) {
-      auto t2 = x2;
-      auto t3 = x3;
-      x3 = do_one_fold(x1, _mm_loadu_si128((__m128i *)data + 1));
-      x2 = do_one_fold(x0, _mm_loadu_si128((__m128i *)data));
-      x1 = t3;
-      x0 = t2;
-    } else if (len >= 16) {
-      auto t3 = x3;
-      x3 = do_one_fold(x0, _mm_loadu_si128((__m128i *)data));
-      x0 = x1;
-      x1 = x2;
-      x2 = t3;
-    }
-    data += len & 48;
-    len &= 15;
-
-    if (len > 0) {
-      auto xmm_shl = _mm_loadu_si128((__m128i *)(pshufb_shf_table + len));
-      auto xmm_shr = _mm_xor_si128(xmm_shl, _mm_set1_epi8(-128));
-
-      auto t0 = _mm_loadu_si128((__m128i *)data);
-      auto t1 = _mm_shuffle_epi8(x0, xmm_shl);
-
-      x0 = _mm_or_si128(_mm_shuffle_epi8(x0, xmm_shr),
-                        _mm_shuffle_epi8(x1, xmm_shl));
-      x1 = _mm_or_si128(_mm_shuffle_epi8(x1, xmm_shr),
-                        _mm_shuffle_epi8(x2, xmm_shl));
-      x2 = _mm_or_si128(_mm_shuffle_epi8(x2, xmm_shr),
-                        _mm_shuffle_epi8(x3, xmm_shl));
-      x3 = _mm_or_si128(_mm_shuffle_epi8(x3, xmm_shr),
-                        _mm_shuffle_epi8(t0, xmm_shl));
-
-      x3 = do_one_fold(t1, x3);
-    }
-
-    const auto k3k4 = _mm_set_epi32(1, 0x751997d0, 0, 0xccaa009e);
-    const auto k5k4 = _mm_set_epi32(1, 0x63cd6124, 0, 0xccaa009e);
-    const auto poly = _mm_set_epi32(1, 0xdb710640, 0, 0xf7011641);
-
-    x0 = double_xor(x1, _mm_clmulepi64_si128(x0, k3k4, 0x10),
-                    _mm_clmulepi64_si128(x0, k3k4, 0x01));
-    x0 = double_xor(x2, _mm_clmulepi64_si128(x0, k3k4, 0x10),
-                    _mm_clmulepi64_si128(x0, k3k4, 0x01));
-    x0 = double_xor(x3, _mm_clmulepi64_si128(x0, k3k4, 0x10),
-                    _mm_clmulepi64_si128(x0, k3k4, 0x01));
-
-    x1 =
-        _mm_xor_si128(_mm_clmulepi64_si128(x0, k5k4, 0), _mm_srli_si128(x0, 8));
-
-    x0 = _mm_slli_si128(x1, 4);
-    x0 = _mm_clmulepi64_si128(x0, k5k4, 0x10);
-#ifdef __AVX512VL__
-    x0 = _mm_ternarylogic_epi32(x0, x1, _mm_set_epi32(0, -1, -1, 0), 0x28);
-#else
-    x1 = _mm_and_si128(x1, _mm_set_epi32(0, -1, -1, 0));
-    x0 = _mm_xor_si128(x0, x1);
-#endif
-
-    x1 = _mm_clmulepi64_si128(x0, poly, 0);
-    x1 = _mm_clmulepi64_si128(x1, poly, 0x10);
-#ifdef __AVX512VL__
-    x1 = _mm_ternarylogic_epi32(x1, x0, x0, 0xC3); // NOT(XOR(x1, x0))
-#else
-    x0 = _mm_xor_si128(x0, _mm_set_epi32(0, -1, -1, 0));
-    x1 = _mm_xor_si128(x1, x0);
-#endif
-    return _mm_extract_epi32(x1, 2);
-  }
-};
-#else
-} // namespace
-#include <array>
-#include <cstddef>
-#include <utility>
-namespace {
-// from https://joelfilho.com/blog/2020/compile_time_lookup_tables_in_cpp/
-template <std::size_t Length, typename Generator, std::size_t... Indexes>
-constexpr auto lut_impl(Generator &&f, std::index_sequence<Indexes...>) {
-  using content_type = decltype(f(std::size_t{0}));
-  return std::array<content_type, Length>{{f(Indexes)...}};
-}
-template <std::size_t Length, typename Generator>
-constexpr auto lut(Generator &&f) {
-  return lut_impl<Length>(std::forward<Generator>(f),
-                          std::make_index_sequence<Length>{});
-}
-
-constexpr uint32_t crc32_slice8_gen(unsigned n) {
-  uint32_t crc = n & 0xff;
-  for (int i = n >> 8; i >= 0; i--) {
-    for (int j = 0; j < 8; j++) {
-      crc = (crc >> 1) ^
-            ((crc & 1) * 0xEDB88320); // 0xEDB88320 = CRC32 polynomial
-    }
-  }
-  return crc;
-}
-static constexpr auto kCrcSlice8LUT = lut<256 * 8>(crc32_slice8_gen);
-
-class Crc32 {
-  uint32_t state;
-
-  // this is based off Fast CRC32 slice-by-8:
-  // https://create.stephan-brumme.com/crc32/
-  static inline uint32_t crc_process_iter(uint32_t crc,
-                                          const uint32_t *current) {
-    uint32_t one = *current++ ^ crc;
-    uint32_t two = *current;
-    return kCrcSlice8LUT[(two >> 24) & 0xFF] ^
-           kCrcSlice8LUT[0x100 + ((two >> 16) & 0xFF)] ^
-           kCrcSlice8LUT[0x200 + ((two >> 8) & 0xFF)] ^
-           kCrcSlice8LUT[0x300 + (two & 0xFF)] ^
-           kCrcSlice8LUT[0x400 + ((one >> 24) & 0xFF)] ^
-           kCrcSlice8LUT[0x500 + ((one >> 16) & 0xFF)] ^
-           kCrcSlice8LUT[0x600 + ((one >> 8) & 0xFF)] ^
-           kCrcSlice8LUT[0x700 + (one & 0xFF)];
-  }
-
-public:
-  Crc32() : state(0xffffffff) {}
-  size_t update(const unsigned char *__restrict data, size_t len) {
-    auto amount = len & ~7;
-    for (size_t i = 0; i < amount; i += 8) {
-      state = crc_process_iter(state, (uint32_t *)(data + i));
-    }
-    return amount;
-  }
-  uint32_t update_final(const unsigned char *__restrict data, size_t len) {
-    auto i = update(data, len);
-    for (; i < len; i++) {
-      state = (state >> 8) ^ kCrcSlice8LUT[(state & 0xFF) ^ data[i]];
-    }
-    return ~state;
-  }
-};
-
-#endif
 
 constexpr unsigned kAdler32Mod = 65521;
 

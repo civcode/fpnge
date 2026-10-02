@@ -75,15 +75,8 @@ fi
 
 "${BUILD_DIR}/api_roundtrip_test"
 
-# The portable checksum backend is selected by compiling without PCLMUL. This
-# test intentionally includes fpnge.cc in its own TU so Crc32 can remain an
-# implementation detail of production code.
-CRC_FLAGS=(-msse4.1 -mno-pclmul)
-if [[ "$(uname -m)" != "x86_64" && "$(uname -m)" != "amd64" ]]; then
-  echo "Portable CRC direct test is currently built from the x86 source baseline; skipping on $(uname -m)."
-else
-  "${CXX}" "${COMMON_FLAGS[@]}" -O2 -g "${CRC_FLAGS[@]}" \
-    -I"${ROOT_DIR}" "${ROOT_DIR}/tests/crc_portable_test.cc" \
-    -o "${BUILD_DIR}/crc_portable_test"
-  "${BUILD_DIR}/crc_portable_test"
-fi
+# The portable CRC backend is architecture-independent after the M2 extraction.
+"${CXX}" "${COMMON_FLAGS[@]}" -O2 -g \
+  -I"${ROOT_DIR}" "${ROOT_DIR}/tests/crc_portable_test.cc" \
+  -o "${BUILD_DIR}/crc_portable_test"
+"${BUILD_DIR}/crc_portable_test"
