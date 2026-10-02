@@ -60,7 +60,27 @@ fixed separately in commit `5e45e4751cf79a32b948e6ffb5a4ffafeae56662`.
 The deterministic API suite currently contains 901 encode/decode cases, and the
 portable CRC suite contains 32,800 length/alignment cases.
 
+## Milestone M2 status
+
+Implemented on `arm64-neon`:
+
+- explicit `FPNGE_ARCH_X86_64` and `FPNGE_ARCH_AARCH64` detection;
+- removal of the broad `__LP64` x86 predicate;
+- portable and PCLMUL CRC backends split into internal headers;
+- SSE4.1/AVX2 vector configuration isolated in `internal/simd_x86.h`;
+- predictor/zero-run, Huffman cost/bit-pack, Adler, symbol-count, and row
+  conversion mechanics isolated in `internal/kernels_x86.h`;
+- shared `fpnge.cc` no longer contains direct `MIVEC` or x86 intrinsic calls;
+- explicit SSE4.1 and AVX2 API CI jobs;
+- byte-output parity script against the pre-M2 baseline commit.
+
+See `docs/m2_architecture_seam.md` for the backend contract.
+
+Native x86 performance comparison remains a hardware measurement task using the
+M0 benchmark protocol; CI timing is not used as a performance gate.
+
 ## Next milestone
 
-M2 extracts explicit architecture detection and stable x86 kernel/checksum
-seams without adding ARM implementation code.
+M3 is the short-lived AArch64 feasibility prototype. It should use the new
+codec-level seams, keep the portable CRC backend, and gather correctness and
+profile data on real ARM64 hardware before the production NEON implementation.

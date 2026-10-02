@@ -7,6 +7,8 @@
 // shared PNG control flow should call these codec-level kernels instead.
 namespace x86 {
 
+inline constexpr size_t kSimdWidth = SIMD_WIDTH;
+
 static uint32_t hadd(MIVEC v) {
   auto sum =
 #ifdef __AVX2__

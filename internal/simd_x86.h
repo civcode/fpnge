@@ -6,6 +6,16 @@
 #error "Current FPNGE SIMD backend supports x86-64 only; AArch64/NEON is not implemented yet"
 #endif
 
+#if !defined(FPNGE_USE_PEXT)
+#if defined(__BMI2__) && FPNGE_ARCH_X86_64 &&                            \
+    !defined(__tune_znver1__) && !defined(__tune_znver2__) &&                  \
+    !defined(__tune_bdver4__)
+#define FPNGE_USE_PEXT 1
+#else
+#define FPNGE_USE_PEXT 0
+#endif
+#endif
+
 #ifdef __AVX2__
 #include <immintrin.h>
 #define MM(f) _mm256_##f

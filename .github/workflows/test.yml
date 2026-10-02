@@ -20,6 +20,29 @@ jobs:
       - run: cd $GITHUB_WORKSPACE
       - run: ./test.sh
 
+  api-x86-profiles:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        profile: [x86-sse41, x86-avx2]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - run: cd $GITHUB_WORKSPACE
+      - name: API correctness (${{ matrix.profile }})
+        run: ./tests/run_api_tests.sh --profile ${{ matrix.profile }}
+
+  x86-refactor-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - name: Compare pre-M2 and current encoded bytes
+        run: ./tests/compare_x86_refactor.sh
+
   api-sanitizers:
     runs-on: ubuntu-latest
     steps:

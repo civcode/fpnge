@@ -35,16 +35,6 @@
 #define FORCE_INLINE __attribute__((always_inline)) inline
 #endif
 
-#if !defined(FPNGE_USE_PEXT)
-#if defined(__BMI2__) && FPNGE_ARCH_X86_64 &&                            \
-    !defined(__tune_znver1__) && !defined(__tune_znver2__) &&                  \
-    !defined(__tune_bdver4__)
-#define FPNGE_USE_PEXT 1
-#else
-#define FPNGE_USE_PEXT 0
-#endif
-#endif
-
 #include "internal/simd_x86.h"
 
 #ifdef __PCLMUL__
@@ -464,22 +454,22 @@ extern "C" size_t FPNGEEncode(size_t bytes_per_channel, size_t num_channels,
   // allows for padding, and for extra initial space for the "left" pixel for
   // predictors.
   size_t bytes_per_line_buf =
-      (bytes_per_line + 4 * bytes_per_channel + SIMD_WIDTH - 1) / SIMD_WIDTH *
-      SIMD_WIDTH;
+      (bytes_per_line + 4 * bytes_per_channel + x86::kSimdWidth - 1) / x86::kSimdWidth *
+      x86::kSimdWidth;
 
   // Extra space for alignment purposes.
-  std::vector<unsigned char> buf(bytes_per_line_buf * 2 + SIMD_WIDTH - 1 +
+  std::vector<unsigned char> buf(bytes_per_line_buf * 2 + x86::kSimdWidth - 1 +
                                  4 * bytes_per_channel);
   unsigned char *aligned_buf_ptr = buf.data() + 4 * bytes_per_channel;
-  aligned_buf_ptr += (intptr_t)aligned_buf_ptr % SIMD_WIDTH
-                         ? (SIMD_WIDTH - (intptr_t)aligned_buf_ptr % SIMD_WIDTH)
+  aligned_buf_ptr += (intptr_t)aligned_buf_ptr % x86::kSimdWidth
+                         ? (x86::kSimdWidth - (intptr_t)aligned_buf_ptr % x86::kSimdWidth)
                          : 0;
 
-  std::vector<unsigned char> pdata_buf(bytes_per_line_buf + SIMD_WIDTH - 1);
+  std::vector<unsigned char> pdata_buf(bytes_per_line_buf + x86::kSimdWidth - 1);
   unsigned char *aligned_pdata_ptr = pdata_buf.data();
   aligned_pdata_ptr +=
-      (intptr_t)aligned_pdata_ptr % SIMD_WIDTH
-          ? (SIMD_WIDTH - (intptr_t)aligned_pdata_ptr % SIMD_WIDTH)
+      (intptr_t)aligned_pdata_ptr % x86::kSimdWidth
+          ? (x86::kSimdWidth - (intptr_t)aligned_pdata_ptr % x86::kSimdWidth)
           : 0;
 
   struct FPNGEOptions default_options;
