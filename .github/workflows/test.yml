@@ -37,6 +37,22 @@ jobs:
       - name: Compare pre-M2 and current encoded bytes
         run: ./tests/compare_x86_refactor.sh
 
+
+  api-arm64-feasibility:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: Run API correctness on native ARM64
+        run: ./tests/run_api_tests.sh --profile aarch64-neon
+      - name: Build generic ARMv8-A CLI
+        run: ./build.sh --profile aarch64-neon
+      - name: Reject optional CRC32 or PMULL instructions
+        run: ./scripts/check_aarch64_baseline.sh ./build/fpnge
+      - name: Smoke benchmark compatibility backend
+        run: ./benchmark.sh --profile aarch64-neon -- --width 640 --height 480 --iterations 3 --warmup 1 --case ui
+
   api-sanitizers:
     runs-on: ubuntu-latest
     steps:

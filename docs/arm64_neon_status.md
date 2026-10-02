@@ -79,8 +79,26 @@ See `docs/m2_architecture_seam.md` for the backend contract.
 Native x86 performance comparison remains a hardware measurement task using the
 M0 benchmark protocol; CI timing is not used as a performance gate.
 
+## Milestone M3 status
+
+Repository-side feasibility implementation is complete:
+
+- pinned `sse2neon` compatibility dependency for the disposable prototype;
+- AArch64 backend selection using the existing 128-bit kernel source;
+- portable CRC32 forced on AArch64;
+- generic `-march=armv8-a` build profile retained;
+- baseline-ISA audit that rejects CRC32/PMULL in generic ARM binaries;
+- native ARM64 GitHub Actions correctness/build/benchmark smoke job;
+- Pi 4/Pi 5 benchmark and `perf` capture script for UI and noise workloads at
+  640x480, 1280x720, and 1920x1080.
+
+See `docs/m3_feasibility.md`.
+
+The **M3 decision gate remains pending native Pi 4 and Pi 5 runs**. GitHub-hosted
+ARM64 correctness is useful, but its performance data is not a substitute for
+Cortex-A72/A76 measurements.
+
 ## Next milestone
 
-M3 is the short-lived AArch64 feasibility prototype. It should use the new
-codec-level seams, keep the portable CRC backend, and gather correctness and
-profile data on real ARM64 hardware before the production NEON implementation.
+M4 is the native NEON implementation. Do not start performance-driven M4 work
+until the M3 Pi captures identify the actual translated hot spots.
