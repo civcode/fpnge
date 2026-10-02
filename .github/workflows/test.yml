@@ -1,12 +1,6 @@
 name: Run tests
 on:
-  push:
-    branches:
-    - main
-    - arm64-neon
-  pull_request:
-    branches:
-    - main
+  workflow_dispatch:
 
 jobs:
   build-and-test:
