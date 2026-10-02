@@ -32,7 +32,7 @@ constexpr uint32_t Crc32Slice8Gen(unsigned n) {
   return crc;
 }
 
-inline constexpr auto kCrcSlice8LUT = Lut<256 * 8>(Crc32Slice8Gen);
+static constexpr auto kCrcSlice8LUT = Lut<256 * 8>(Crc32Slice8Gen);
 
 inline uint32_t ProcessIter(uint32_t crc, const uint32_t* current) {
   uint32_t one = *current++ ^ crc;

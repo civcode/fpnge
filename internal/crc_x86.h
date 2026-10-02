@@ -7,6 +7,15 @@
 #include <wmmintrin.h>
 
 namespace fpnge_internal {
+namespace crc_x86_detail {
+
+alignas(32) static constexpr uint8_t kShiftTable[] = {
+    0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
+    0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f};
+
+}  // namespace crc_x86_detail
 
 class Crc32X86 {
  public:
@@ -69,7 +78,7 @@ class Crc32X86 {
 
     if (len > 0) {
       auto xmm_shl =
-          _mm_loadu_si128(reinterpret_cast<const __m128i*>(kShiftTable + len));
+          _mm_loadu_si128(reinterpret_cast<const __m128i*>(crc_x86_detail::kShiftTable + len));
       auto xmm_shr = _mm_xor_si128(xmm_shl, _mm_set1_epi8(-128));
 
       auto t0 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(data));
@@ -122,12 +131,6 @@ class Crc32X86 {
   }
 
  private:
-  alignas(32) inline static constexpr uint8_t kShiftTable[] = {
-      0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
-      0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
-      0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-      0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f};
-
   static inline __m128i Xor3(__m128i a, __m128i b, __m128i c) {
 #ifdef __AVX512VL__
     return _mm_ternarylogic_epi32(a, b, c, 0x96);
