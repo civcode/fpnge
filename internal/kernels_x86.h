@@ -3,9 +3,14 @@
 #define FPNGE_INTERNAL_KERNELS_X86_H_
 
 // This header is included from fpnge.cc after the shared HuffmanTable and
-// BitWriter types are defined. Keep x86 intrinsic mechanics in this namespace;
-// shared PNG control flow should call these codec-level kernels instead.
-namespace x86 {
+// BitWriter types are defined. On x86 it is compiled against native SSE4.1/AVX2.
+// M3 may temporarily compile the same kernel source through sse2neon on AArch64.
+#ifndef FPNGE_KERNEL_NAMESPACE
+#define FPNGE_KERNEL_NAMESPACE x86
+#define FPNGE_KERNEL_NAMESPACE_DEFAULTED 1
+#endif
+
+namespace FPNGE_KERNEL_NAMESPACE {
 
 constexpr size_t kSimdWidth = SIMD_WIDTH;
 
@@ -905,6 +910,11 @@ void CopyRow(unsigned char *dst, const unsigned char *src, size_t nb_channels,
   }
 }
 
-}  // namespace x86
+}  // namespace FPNGE_KERNEL_NAMESPACE
+
+#ifdef FPNGE_KERNEL_NAMESPACE_DEFAULTED
+#undef FPNGE_KERNEL_NAMESPACE_DEFAULTED
+#undef FPNGE_KERNEL_NAMESPACE
+#endif
 
 #endif  // FPNGE_INTERNAL_KERNELS_X86_H_

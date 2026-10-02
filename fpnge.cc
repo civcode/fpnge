@@ -25,19 +25,27 @@
 #if defined(_MSC_VER) && !defined(__clang__)
 #define FORCE_INLINE_LAMBDA
 #define FORCE_INLINE __forceinline
+#if FPNGE_ARCH_X86_64
 #define __SSE4_1__ 1
 #define __PCLMUL__ 1
 #ifdef __AVX2__
 #define __BMI2__ 1
+#endif
 #endif
 #else
 #define FORCE_INLINE_LAMBDA __attribute__((always_inline))
 #define FORCE_INLINE __attribute__((always_inline)) inline
 #endif
 
+#if FPNGE_ARCH_X86_64
 #include "internal/simd_x86.h"
+#elif FPNGE_ARCH_AARCH64
+#include "internal/simd_sse2neon.h"
+#else
+#error "FPNGE currently supports x86-64 and the ARM64 feasibility prototype"
+#endif
 
-#ifdef __PCLMUL__
+#if FPNGE_ARCH_X86_64 && defined(__PCLMUL__)
 #include "internal/crc_x86.h"
 #else
 #include "internal/crc_portable.h"
@@ -45,7 +53,7 @@
 
 namespace {
 
-#ifdef __PCLMUL__
+#if FPNGE_ARCH_X86_64 && defined(__PCLMUL__)
 using Crc32 = fpnge_internal::Crc32X86;
 #else
 using Crc32 = fpnge_internal::Crc32Portable;
@@ -378,7 +386,16 @@ static void UpdateAdler32(uint32_t &s1, uint32_t &s2, uint8_t byte) {
   s2 %= kAdler32Mod;
 }
 
+#if FPNGE_ARCH_AARCH64
+#define FPNGE_KERNEL_NAMESPACE arm_sse2neon
+#endif
 #include "internal/kernels_x86.h"
+#if FPNGE_ARCH_AARCH64
+#undef FPNGE_KERNEL_NAMESPACE
+namespace kernels = arm_sse2neon;
+#else
+namespace kernels = x86;
+#endif
 
 static void AppendBE32(size_t value, BitWriter *__restrict writer) {
   writer->Write(8, value >> 24);
@@ -454,22 +471,22 @@ extern "C" size_t FPNGEEncode(size_t bytes_per_channel, size_t num_channels,
   // allows for padding, and for extra initial space for the "left" pixel for
   // predictors.
   size_t bytes_per_line_buf =
-      (bytes_per_line + 4 * bytes_per_channel + x86::kSimdWidth - 1) / x86::kSimdWidth *
-      x86::kSimdWidth;
+      (bytes_per_line + 4 * bytes_per_channel + kernels::kSimdWidth - 1) / kernels::kSimdWidth *
+      kernels::kSimdWidth;
 
   // Extra space for alignment purposes.
-  std::vector<unsigned char> buf(bytes_per_line_buf * 2 + x86::kSimdWidth - 1 +
+  std::vector<unsigned char> buf(bytes_per_line_buf * 2 + kernels::kSimdWidth - 1 +
                                  4 * bytes_per_channel);
   unsigned char *aligned_buf_ptr = buf.data() + 4 * bytes_per_channel;
-  aligned_buf_ptr += (intptr_t)aligned_buf_ptr % x86::kSimdWidth
-                         ? (x86::kSimdWidth - (intptr_t)aligned_buf_ptr % x86::kSimdWidth)
+  aligned_buf_ptr += (intptr_t)aligned_buf_ptr % kernels::kSimdWidth
+                         ? (kernels::kSimdWidth - (intptr_t)aligned_buf_ptr % kernels::kSimdWidth)
                          : 0;
 
-  std::vector<unsigned char> pdata_buf(bytes_per_line_buf + x86::kSimdWidth - 1);
+  std::vector<unsigned char> pdata_buf(bytes_per_line_buf + kernels::kSimdWidth - 1);
   unsigned char *aligned_pdata_ptr = pdata_buf.data();
   aligned_pdata_ptr +=
-      (intptr_t)aligned_pdata_ptr % x86::kSimdWidth
-          ? (x86::kSimdWidth - (intptr_t)aligned_pdata_ptr % x86::kSimdWidth)
+      (intptr_t)aligned_pdata_ptr % kernels::kSimdWidth
+          ? (kernels::kSimdWidth - (intptr_t)aligned_pdata_ptr % kernels::kSimdWidth)
           : 0;
 
   struct FPNGEOptions default_options;
@@ -520,13 +537,13 @@ extern "C" size_t FPNGEEncode(size_t bytes_per_channel, size_t num_channels,
     const unsigned char *topleft_buf =
         top_buf - bytes_per_channel * num_channels;
 
-    x86::CopyRow(current_row_buf, current_row_in, num_channels, bytes_per_channel,
+    kernels::CopyRow(current_row_buf, current_row_in, num_channels, bytes_per_channel,
             (FPNGEColorChannelOrder)options->channel_order, width);
     if (y == y0 && y != 0) {
       continue;
     }
 
-    x86::CollectSymbolCounts(bytes_per_line, current_row_buf, top_buf, left_buf,
+    kernels::CollectSymbolCounts(bytes_per_line, current_row_buf, top_buf, left_buf,
                         topleft_buf, aligned_pdata_ptr, symbol_counts, options);
   }
 
@@ -553,10 +570,10 @@ extern "C" size_t FPNGEEncode(size_t bytes_per_channel, size_t num_channels,
     const unsigned char *topleft_buf =
         top_buf - bytes_per_channel * num_channels;
 
-    x86::CopyRow(current_row_buf, current_row_in, num_channels, bytes_per_channel,
+    kernels::CopyRow(current_row_buf, current_row_in, num_channels, bytes_per_channel,
             (FPNGEColorChannelOrder)options->channel_order, width);
 
-    x86::EncodeOneRow(bytes_per_line, current_row_buf, top_buf, left_buf,
+    kernels::EncodeOneRow(bytes_per_line, current_row_buf, top_buf, left_buf,
                  topleft_buf, aligned_pdata_ptr, huffman_table, s1, s2, &writer,
                  options);
 
