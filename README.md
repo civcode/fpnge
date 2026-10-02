@@ -5,6 +5,7 @@
 > NEON/Advanced SIMD while preserving the existing x86 SSE4.1/AVX2 paths and public API.
 > The work is being structured for eventual upstream contribution; see [docs/](docs/) for
 > the implementation plan, roadmap, benchmark protocol, and current ARM64 development status.
+
 This is a proof-of-concept fast PNG encoder that uses AVX2 and a special
 Huffman table to encode images faster. Speed on a single core is anywhere from
 180 to 800 MP/s on a Threadripper 3970x, depending on compile time settings and
