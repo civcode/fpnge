@@ -69,3 +69,6 @@ if [ $FAILURES -gt 0 ]
 then
   exit 1
 fi
+
+# API-level correctness/property coverage added for the ARM64/NEON work.
+./tests/run_api_tests.sh --profile "${FPNGE_TEST_PROFILE:-x86-sse41}"

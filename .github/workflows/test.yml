@@ -1,8 +1,9 @@
-name: Run tests 
+name: Run tests
 on:
   push:
     branches:
     - main
+    - arm64-neon
   pull_request:
     branches:
     - main
@@ -19,3 +20,12 @@ jobs:
       - run: cd $GITHUB_WORKSPACE
       - run: ./test.sh
 
+  api-sanitizers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - run: cd $GITHUB_WORKSPACE
+      - name: API round-trip tests with ASan and UBSan
+        run: ./tests/run_api_tests.sh --profile x86-sse41 --sanitize

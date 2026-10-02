@@ -34,7 +34,33 @@ Requires native hardware or the external RenderModule/FPNG environment:
 Those measurements must be recorded from real target hardware. Emulation or
 invented values are not acceptable substitutes.
 
+## Milestone M1 status
+
+Implemented on `arm64-neon`:
+
+- direct `FPNGEEncode` API round-trip tests using pinned lodepng as an
+  independent decoder;
+- 8-bit and 16-bit coverage for 1, 2, 3, and 4 channels;
+- RGB/BGR ordering and predictors 0 through 6;
+- compression levels 1 through 5 through `FPNGEFillOptions`;
+- deterministic solid, gradient, checkerboard, sparse-row, alpha, UI-like, and
+  noise image families;
+- widths around 16/32-byte SIMD boundaries up through 257 bytes/pixels;
+- input pointer offsets 0..31 and stride padding 0..31;
+- PNG chunk CRC verification plus cICP/additional-chunk semantics;
+- guard regions around `FPNGEOutputAllocSize()` to detect output overwrite;
+- a direct portable CRC32 differential test over lengths 0..1024 and offsets
+  0..31, plus the standard "123456789" CRC vector;
+- ASan/UBSan CI for the API harness;
+- a focused BGR16 scalar-tail regression test.
+
+The suspected 16-bit, three-channel BGR scalar-tail defect was confirmed and
+fixed separately in commit `5e45e4751cf79a32b948e6ffb5a4ffafeae56662`.
+
+The deterministic API suite currently contains 901 encode/decode cases, and the
+portable CRC suite contains 32,800 length/alignment cases.
+
 ## Next milestone
 
-M1 builds the API-level correctness safety net before any structural SIMD
-refactor or native NEON implementation begins.
+M2 extracts explicit architecture detection and stable x86 kernel/checksum
+seams without adding ARM implementation code.
