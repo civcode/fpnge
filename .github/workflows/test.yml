@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        profile: [x86-sse41, x86-avx2]
+        profile: [x86-sse41, x86-avx2, x86-sse41-portable-crc]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -26,6 +26,12 @@ jobs:
       - run: cd $GITHUB_WORKSPACE
       - name: API correctness (${{ matrix.profile }})
         run: ./tests/run_api_tests.sh --profile ${{ matrix.profile }}
+      - name: Short codec soak smoke (${{ matrix.profile }})
+        run: |
+          ./soak.sh --profile ${{ matrix.profile }} -- \
+            --width 320 --height 240 --case ui \
+            --iterations 30 --warmup 3 --sample-every 10 \
+            --max-drift-pct 200 --max-rss-growth-kb 32768
 
   x86-refactor-parity:
     runs-on: ubuntu-latest
@@ -54,6 +60,14 @@ jobs:
         run: ./scripts/check_aarch64_baseline.sh ./build/fpnge
       - name: Smoke benchmark native NEON backend
         run: ./benchmark.sh --profile aarch64-neon -- --width 640 --height 480 --iterations 3 --warmup 1 --case ui
+      - name: Short native codec soak smoke
+        run: |
+          for case_name in ui noise; do
+            ./soak.sh --profile aarch64-neon -- \
+              --width 320 --height 240 --case "${case_name}" \
+              --iterations 30 --warmup 3 --sample-every 10 \
+              --max-drift-pct 200 --max-rss-growth-kb 32768
+          done
 
   api-arm64-sanitizers:
     runs-on: ubuntu-24.04-arm
@@ -73,3 +87,23 @@ jobs:
       - run: cd $GITHUB_WORKSPACE
       - name: API round-trip tests with ASan and UBSan
         run: ./tests/run_api_tests.sh --profile x86-sse41 --sanitize
+
+  package-reproducibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - name: Verify deterministic source package
+        run: ./scripts/check_reproducible_package.sh
+      - name: Build and test packaged portable-CRC source
+        run: |
+          tmp_dir="$(mktemp -d)"
+          ./scripts/package_source.sh --commit HEAD --output "${tmp_dir}/fpnge.tar.gz"
+          mkdir "${tmp_dir}/src"
+          tar -xzf "${tmp_dir}/fpnge.tar.gz" -C "${tmp_dir}/src"
+          package_root="$(find "${tmp_dir}/src" -mindepth 1 -maxdepth 1 -type d | head -n1)"
+          cd "${package_root}"
+          ./build.sh --profile x86-sse41-portable-crc
+          ./tests/run_api_tests.sh --profile x86-sse41-portable-crc

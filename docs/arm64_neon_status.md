@@ -206,3 +206,25 @@ end-to-end profiling makes checksum work a measurable bottleneck.
 
 The next active milestone is M6: multi-architecture CI, native soak, and
 packaging.
+
+## Milestone M6 status
+
+Repository-side M6 validation tooling is implemented:
+
+- manual multi-architecture CI now includes SSE4.1, AVX2, forced portable CRC,
+  native AArch64, x86/AArch64 sanitizers, short soak smoke, and package checks;
+- `FPNGE_FORCE_PORTABLE_CRC` provides direct portable-checksum coverage on x86;
+- `bench/fpnge_soak.cc` and `soak.sh` provide long-lived deterministic
+  encode soak testing with median/p95/p99, latency drift, RSS growth,
+  temperature, and frequency metrics;
+- `scripts/m6_pi_capture.sh` captures correctness, ISA, packaging, thermal,
+  throttle, and UI/noise soak evidence on native Raspberry Pi hardware;
+- deterministic source packaging is available through
+  `scripts/package_source.sh` and `scripts/check_reproducible_package.sh`;
+- reproducible build commands are documented in `docs/m6_validation.md`.
+
+The **M6 repository implementation is complete, but its exit gate remains
+pending execution**: a green manual CI run plus clean M6 soak captures on both
+Pi 4 / Cortex-A72 and Pi 5 / Cortex-A76 are still required. Existing M4 Pi 5
+correctness/performance data is retained but is not substituted for the new
+long-lived M6 soak.

@@ -14,3 +14,18 @@ content.
 It supports 8 and 16 bit content, 1 to 4 channels; it can also emit
 [cICP chunks](https://www.w3.org/TR/png/#cICP-chunk) for signaling that
 the content should be interpreted as HDR.
+
+## Architecture build profiles
+
+Reproducible profiles are available for x86 SSE4.1, x86 AVX2/BMI2, x86 with
+the portable CRC reference path forced, and generic AArch64/NEON:
+
+```bash
+./build.sh --profile x86-sse41
+./build.sh --profile x86-avx2
+./build.sh --profile x86-sse41-portable-crc
+./build.sh --profile aarch64-neon
+```
+
+See [docs/m6_validation.md](docs/m6_validation.md) for multi-architecture CI,
+native soak/thermal validation, and deterministic source packaging.
