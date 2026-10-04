@@ -51,9 +51,11 @@ policy is retained.
 
 Literal classification and lookup are vectorized with NEON. Codes are then
 packed from their required DEFLATE bit representation in bounded groups rather
-than reproducing the SSE variable-shift/float-emulation sequence. This keeps
-the bitstream semantics explicit and leaves headroom for `BitWriter`'s
-partial-byte buffer.
+than reproducing the SSE variable-shift/float-emulation sequence. The grouping
+helper is architecture-independent and has a randomized scalar-reference test
+covering 16,705 symbol sequences, including high garbage bits above each
+declared code length. This keeps the bitstream semantics explicit and leaves
+headroom for `BitWriter`'s partial-byte buffer.
 
 ### BGR/RGB conversion
 

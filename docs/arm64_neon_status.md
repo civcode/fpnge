@@ -108,6 +108,8 @@ Repository-side native NEON implementation has landed:
   and BGR/RGB conversion paths have native NEON implementations;
 - portable CRC remains the generic ARM checksum backend;
 - a static backend guard rejects accidental SSE/SSE2NEON dependencies;
+- the semantic Huffman grouping helper has a 16,705-sequence randomized
+  scalar-reference test;
 - native ARM64 correctness and sanitizer jobs are defined in the manual test
   workflow;
 - `scripts/m4_pi_capture.sh` captures correctness-adjacent ISA metadata,

@@ -91,9 +91,14 @@ static void ProcessRow(size_t bytes_per_line,
   size_t run = 0;
   size_t i = 0;
   for (; i + kSimdWidth <= bytes_per_line; i += kSimdWidth) {
-    const uint8x16_t pdata =
-        PredictVec<predictor>(current_row_buf + i, top_buf + i, left_buf + i,
-                              topleft_buf + i);
+    const uint8x16_t pdata = [&]() {
+      if constexpr (predictor == 0) {
+        return PredictVec<0>(current_row_buf + i, nullptr, nullptr, nullptr);
+      } else {
+        return PredictVec<predictor>(current_row_buf + i, top_buf + i,
+                                     left_buf + i, topleft_buf + i);
+      }
+    }();
     if (AllZeroPrefix(pdata, kSimdWidth)) {
       run += kSimdWidth;
     } else {
@@ -106,9 +111,14 @@ static void ProcessRow(size_t bytes_per_line,
 
   const size_t remaining = bytes_per_line - i;
   if (remaining != 0) {
-    const uint8x16_t pdata =
-        PredictVec<predictor>(current_row_buf + i, top_buf + i, left_buf + i,
-                              topleft_buf + i);
+    const uint8x16_t pdata = [&]() {
+      if constexpr (predictor == 0) {
+        return PredictVec<0>(current_row_buf + i, nullptr, nullptr, nullptr);
+      } else {
+        return PredictVec<predictor>(current_row_buf + i, top_buf + i,
+                                     left_buf + i, topleft_buf + i);
+      }
+    }();
     if (AllZeroPrefix(pdata, remaining) && run + remaining >= 16) {
       run += remaining;
     } else {
