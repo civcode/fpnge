@@ -135,3 +135,13 @@ was copied from the green sample in the scalar tail. The SIMD shuffle was
 already correct, so failures appeared on odd widths that reached the scalar
 tail. The fix is covered by dedicated 3-channel and 4-channel BGR16 tail
 regression cases.
+
+## M4 sanitizer finding
+
+The first native Pi 5 M4 sanitizer run exposed undefined behavior in the
+portable slice-by-8 CRC backend: its 32-bit loads assumed pointer alignment
+while IDAT data can begin at arbitrary byte alignment. The backend now performs
+explicit little-endian byte loads, removing both the alignment UB and the
+native-endian load assumption. Sanitizer builds also use
+`-fno-sanitize-recover=all`, and the CRC/bit-pack unit tests are compiled with
+the sanitizer flags so future findings fail the test command immediately.

@@ -34,9 +34,16 @@ constexpr uint32_t Crc32Slice8Gen(unsigned n) {
 
 static constexpr auto kCrcSlice8LUT = Lut<256 * 8>(Crc32Slice8Gen);
 
-inline uint32_t ProcessIter(uint32_t crc, const uint32_t* current) {
-  uint32_t one = *current++ ^ crc;
-  uint32_t two = *current;
+inline uint32_t LoadLE32(const unsigned char* p) {
+  return static_cast<uint32_t>(p[0]) |
+         (static_cast<uint32_t>(p[1]) << 8) |
+         (static_cast<uint32_t>(p[2]) << 16) |
+         (static_cast<uint32_t>(p[3]) << 24);
+}
+
+inline uint32_t ProcessIter(uint32_t crc, const unsigned char* current) {
+  uint32_t one = LoadLE32(current) ^ crc;
+  uint32_t two = LoadLE32(current + 4);
   return kCrcSlice8LUT[(two >> 24) & 0xFF] ^
          kCrcSlice8LUT[0x100 + ((two >> 16) & 0xFF)] ^
          kCrcSlice8LUT[0x200 + ((two >> 8) & 0xFF)] ^
@@ -56,8 +63,7 @@ class Crc32Portable {
   size_t update(const unsigned char* data, size_t len) {
     const size_t amount = len & ~size_t{7};
     for (size_t i = 0; i < amount; i += 8) {
-      state_ = crc_portable_detail::ProcessIter(
-          state_, reinterpret_cast<const uint32_t*>(data + i));
+      state_ = crc_portable_detail::ProcessIter(state_, data + i);
     }
     return amount;
   }

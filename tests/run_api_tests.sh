@@ -59,7 +59,8 @@ fi
 COMMON_FLAGS=(-std=c++17 -Wall -Wextra -Werror)
 OPT_FLAGS=(-O2 -g)
 if [[ ${SANITIZE} -eq 1 ]]; then
-  OPT_FLAGS=(-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined)
+  OPT_FLAGS=(-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined
+             -fno-sanitize-recover=all)
 fi
 
 "${CXX}" "${OPT_FLAGS[@]}" -std=c++17 -c \
@@ -75,11 +76,11 @@ fi
 "${BUILD_DIR}/api_roundtrip_test"
 
 # The portable CRC backend is architecture-independent after the M2 extraction.
-"${CXX}" "${COMMON_FLAGS[@]}" -O2 -g \
+"${CXX}" "${COMMON_FLAGS[@]}" "${OPT_FLAGS[@]}" \
   -I"${ROOT_DIR}" "${ROOT_DIR}/tests/crc_portable_test.cc" \
   -o "${BUILD_DIR}/crc_portable_test"
 
-"${CXX}" "${COMMON_FLAGS[@]}" -O2 -g \
+"${CXX}" "${COMMON_FLAGS[@]}" "${OPT_FLAGS[@]}" \
   -I"${ROOT_DIR}" "${ROOT_DIR}/tests/bit_pack_test.cc" \
   -o "${BUILD_DIR}/bit_pack_test"
 "${BUILD_DIR}/bit_pack_test"
