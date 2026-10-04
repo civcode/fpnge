@@ -6,8 +6,6 @@
 #error "The native NEON kernel backend is only valid on AArch64"
 #endif
 
-#include <arm_neon.h>
-
 #include "bit_pack.h"
 
 namespace neon {

@@ -39,7 +39,9 @@
 
 #if FPNGE_ARCH_X86_64
 #include "internal/simd_x86.h"
-#elif !FPNGE_ARCH_AARCH64
+#elif FPNGE_ARCH_AARCH64
+#include <arm_neon.h>
+#else
 #error "FPNGE currently supports x86-64 and AArch64"
 #endif
 

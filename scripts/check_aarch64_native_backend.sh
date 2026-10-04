@@ -14,7 +14,7 @@ if grep -Eq '\\b_mm[0-9A-Za-z_]*|sse2neon' "${NEON}"; then
   echo "Native NEON kernel contains an SSE/SSE2NEON dependency." >&2
   exit 1
 fi
-grep -q '#include <arm_neon.h>' "${NEON}"
+grep -q '#include <arm_neon.h>' "${FPNGE}"
 grep -q 'vqtbl1q_u8' "${NEON}"
 grep -q 'vhaddq_u8' "${NEON}"
 grep -q 'vld3q_u8' "${NEON}"
