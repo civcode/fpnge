@@ -102,3 +102,12 @@ Cortex-A72/A76 measurements.
 
 M4 is the native NEON implementation. Do not start performance-driven M4 work
 until the M3 Pi captures identify the actual translated hot spots.
+
+## M3 Pi 5 bring-up finding
+
+Native Pi 5 testing exposed a second pre-existing scalar-tail channel-order bug
+in 16-bit four-channel BGR/BGRA conversion. The high byte of the red channel
+was copied from the green sample in the scalar tail. The SIMD shuffle was
+already correct, so failures appeared on odd widths that reached the scalar
+tail. The fix is covered by dedicated 3-channel and 4-channel BGR16 tail
+regression cases.

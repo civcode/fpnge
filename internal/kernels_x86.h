@@ -899,7 +899,7 @@ void CopyRow(unsigned char *dst, const unsigned char *src, size_t nb_channels,
     }
     if (nb_channels == 4 && bytes_per_channel == 2) {
       dst[x * 8] = src[x * 8 + 4];
-      dst[x * 8 + 1] = src[x * 8 + 3];
+      dst[x * 8 + 1] = src[x * 8 + 5];
       dst[x * 8 + 2] = src[x * 8 + 2];
       dst[x * 8 + 3] = src[x * 8 + 3];
       dst[x * 8 + 4] = src[x * 8];

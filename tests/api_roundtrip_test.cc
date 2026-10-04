@@ -350,12 +350,17 @@ void RunMetadataCases(TestStats* stats) {
 }
 
 void RunBgr16TailRegression(TestStats* stats) {
-  // Width 1 forces the scalar 3-channel 16-bit BGR tail path. Distinct high and
+  // Width 1 forces scalar-only 16-bit BGR/BGRA conversion. Odd widths also
+  // exercise a scalar tail after the SIMD conversion path. Distinct high and
   // low bytes make a one-byte channel source error immediately visible.
   RunCase(CaseSpec{1, 1, 2, 3, FPNGE_ORDER_BGR, FPNGE_PREDICTOR_FIXED_NOOP,
                    0, 0, "solid", false, false}, stats);
   RunCase(CaseSpec{9, 2, 2, 3, FPNGE_ORDER_BGR, FPNGE_PREDICTOR_FIXED_NOOP,
                    5, 7, "gradient", false, false}, stats);
+  RunCase(CaseSpec{1, 1, 2, 4, FPNGE_ORDER_BGR, FPNGE_PREDICTOR_FIXED_NOOP,
+                   3, 5, "solid", false, false}, stats);
+  RunCase(CaseSpec{17, 2, 2, 4, FPNGE_ORDER_BGR, FPNGE_PREDICTOR_FIXED_NOOP,
+                   7, 9, "gradient", false, false}, stats);
 }
 
 }  // namespace
