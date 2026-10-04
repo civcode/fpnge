@@ -78,4 +78,9 @@ fi
 "${CXX}" "${COMMON_FLAGS[@]}" -O2 -g \
   -I"${ROOT_DIR}" "${ROOT_DIR}/tests/crc_portable_test.cc" \
   -o "${BUILD_DIR}/crc_portable_test"
+
+"${CXX}" "${COMMON_FLAGS[@]}" -O2 -g \
+  -I"${ROOT_DIR}" "${ROOT_DIR}/tests/bit_pack_test.cc" \
+  -o "${BUILD_DIR}/bit_pack_test"
+"${BUILD_DIR}/bit_pack_test"
 "${BUILD_DIR}/crc_portable_test"

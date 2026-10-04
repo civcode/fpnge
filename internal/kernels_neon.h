@@ -8,6 +8,8 @@
 
 #include <arm_neon.h>
 
+#include "bit_pack.h"
+
 namespace neon {
 
 constexpr size_t kSimdWidth = 16;
@@ -322,30 +324,6 @@ static uint8_t SelectPredictor(size_t bytes_per_line,
   return predictor;
 }
 
-template <typename Bits>
-static FORCE_INLINE void PackCodes(const uint8_t *nbits, const Bits *bits,
-                                   size_t count,
-                                   BitWriter *__restrict writer) {
-  // Pack according to the DEFLATE bitstream result, not an SSE instruction
-  // correspondence. Keeping local groups below 48 bits leaves ample headroom
-  // for BitWriter's existing partial-byte buffer.
-  uint64_t packed = 0;
-  uint32_t packed_nbits = 0;
-  for (size_t i = 0; i < count; ++i) {
-    const uint32_t n = nbits[i];
-    if (packed_nbits + n > 48) {
-      writer->Write(packed_nbits, packed);
-      packed = 0;
-      packed_nbits = 0;
-    }
-    const uint64_t code =
-        static_cast<uint64_t>(bits[i]) & ((uint64_t{1} << n) - 1);
-    packed |= code << packed_nbits;
-    packed_nbits += n;
-  }
-  if (packed_nbits != 0) writer->Write(packed_nbits, packed);
-}
-
 static FORCE_INLINE void WriteLiteralChunk(uint8x16_t bytes, size_t count,
                                            const HuffmanTable &table,
                                            BitWriter *__restrict writer) {
@@ -367,7 +345,9 @@ static FORCE_INLINE void WriteLiteralChunk(uint8x16_t bytes, size_t count,
     alignas(16) uint8_t bits[16];
     vst1q_u8(nbits, vbslq_u8(negative, high_n, low_n));
     vst1q_u8(bits, vbslq_u8(negative, high_bits, low_bits));
-    PackCodes(nbits, bits, count, writer);
+    fpnge_internal::PackCodeSequence(
+        nbits, bits, count,
+        [&](uint32_t n, uint64_t packed) { writer->Write(n, packed); });
     return;
   }
 
@@ -394,7 +374,9 @@ static FORCE_INLINE void WriteLiteralChunk(uint8x16_t bytes, size_t count,
            << (table.mid_nbits - 4)));
     }
   }
-  PackCodes(nbits, bits, count, writer);
+  fpnge_internal::PackCodeSequence(
+      nbits, bits, count,
+      [&](uint32_t n, uint64_t packed) { writer->Write(n, packed); });
 }
 
 static FORCE_INLINE void UpdateAdlerChunk(uint32_t &s1, uint32_t &s2,
