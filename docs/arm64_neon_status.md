@@ -170,3 +170,20 @@ The full-vector native literal path has therefore been rewritten to eliminate
 the per-symbol semantic packing loop: NEON produces the length/code vectors and
 a branchless four-code helper emits four bounded writes per 16-byte vector.
 The scalar semantic packer remains the reference/tail implementation.
+
+## M4 Pi 5 performance fix validation
+
+The optimized native literal packing path was validated on Pi 5 / Cortex-A76 at
+commit `b410b56294b5bea4886a46c5fbd593676bb7097f`. The sanitizer suite remained
+green (903 API cases, 16,705 semantic bit-pack sequences, and 32,800 portable
+CRC cases), and the generic ARMv8-A ISA audit remained green.
+
+With `throttled=0x0` and a 2.4 GHz CPU frequency, the optimized M4 backend
+measured approximately 60.5 MP/s on the UI workload and 51.6 MP/s on noise
+across 640x480, 1280x720, and 1920x1080. Relative to the clean M3 translated
+backend baseline (~54.44 MP/s UI, ~45.31 MP/s noise), this is about +11.1% UI
+and +13.9% noise. Encoded output sizes are unchanged.
+
+The Pi 5 M4 correctness, sanitizer, ISA, and performance gates are therefore
+green. The detailed roadmap's separate Pi 4 / Cortex-A72 validation remains
+outstanding if the full two-device gate is to be satisfied exactly as written.

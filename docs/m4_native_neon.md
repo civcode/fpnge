@@ -135,3 +135,21 @@ The hot full-vector path now constructs code lengths and bits with NEON table
 lookups and packs four symbols at a time with an unrolled branchless helper.
 The generic semantic sequence packer remains as the randomized reference and
 is used only for the final partial vector.
+
+## Optimized Pi 5 validation
+
+After replacing the first semantic literal packer with a four-code unrolled
+full-vector path, the native backend recovered the noise regression and moved
+ahead of the M3 translated baseline on both workloads.
+
+| Workload | M3 translated backend | Optimized M4 native NEON | Change |
+|---|---:|---:|---:|
+| UI | ~54.44 MP/s | ~60.51 MP/s | +11.1% |
+| Noise | ~45.31 MP/s | ~51.61 MP/s | +13.9% |
+
+The optimized capture remained at `throttled=0x0` and 2.4 GHz, with
+temperatures below 50 C. Encoded output sizes match the prior M3/M4 captures.
+
+This closes the Pi 5 side of the M4 correctness/sanitizer/ISA/performance gate.
+A Pi 4 / Cortex-A72 run is still required to satisfy the detailed two-device
+roadmap gate exactly.
