@@ -24,7 +24,7 @@ inline uint64_t PackFourCodes(const uint8_t *nbits, const Bits *bits,
   *packed_nbits = s3 + n3;
 
   const auto mask = [](uint32_t n) -> uint64_t {
-    return n == 0 ? 0 : ((uint64_t{1} << n) - 1);
+    return (uint64_t{1} << n) - 1;
   };
   return (static_cast<uint64_t>(bits[0]) & mask(n0)) |
          ((static_cast<uint64_t>(bits[1]) & mask(n1)) << s1) |
