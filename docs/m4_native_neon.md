@@ -97,7 +97,22 @@ FPNGE_M4_ITERATIONS=60 \
 ./scripts/m4_pi_capture.sh
 ```
 
-The M4 exit gate is not satisfied merely by landing the source. It requires
-native correctness and sanitizer passes, a clean generic-ISA audit, and target
-hardware performance showing a positive trend or a specific tractable
-remaining hotspot.
+Native Pi 5 validation at
+`9ed9cbecb1d4058a30cae1441d1ab2016dc9c97d` passes the 903-case API suite,
+the 16,705-sequence semantic bit-pack test, the 32,800-case portable CRC test,
+ASan/UBSan, and the generic ARMv8-A ISA audit.
+
+The first cooled M4 performance capture remains below the exit gate:
+
+| Workload | M3 translated backend | M4 native NEON | Change |
+|---|---:|---:|---:|
+| UI | ~54.44 MP/s | ~55.80 MP/s | +2.5% |
+| Noise | ~45.31 MP/s | ~29.40 MP/s | -35.1% |
+
+The capture remained at `throttled=0x0` and 2.4 GHz, so the noise regression
+is not explained by thermal throttling. Output sizes are unchanged. The M4
+`perf` reports must be reviewed before choosing the optimization; the most
+likely suspect from code shape is the literal/Huffman packing path, but that is
+not yet a measured attribution.
+
+The M4 exit gate therefore remains open on performance only.

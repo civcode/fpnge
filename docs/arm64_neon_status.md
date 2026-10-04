@@ -117,9 +117,21 @@ Repository-side native NEON implementation has landed:
 
 See `docs/m4_native_neon.md`.
 
-The **M4 implementation is landed, but the M4 exit gate remains pending native
-AArch64 execution of the 903-case API suite, ARM sanitizer run, and M4 Pi
-performance capture**. No speedup is claimed until those measurements exist.
+Native Pi 5 validation at `9ed9cbecb1d4058a30cae1441d1ab2016dc9c97d`
+now passes the 903-case API suite, the 16,705-sequence semantic bit-pack test,
+the 32,800-case portable CRC test, the ASan/UBSan run, and the generic ARMv8-A
+ISA audit.
+
+The cooled Pi 5 M4 capture is thermally clean (`throttled=0x0`) and shows a
+split result: UI throughput improves from the clean M3 baseline of about
+54.44 MP/s to about 55.80 MP/s (+2.5%), while noise drops from about
+45.31 MP/s to about 29.40 MP/s (-35.1%). The output sizes are unchanged.
+
+The **M4 correctness/sanitizer/ISA gates are green, but the M4 performance exit
+gate is not met**. The noise regression must be profiled and fixed before M4 is
+closed. The current leading hypothesis is the native literal/Huffman packing
+path because incompressible noise exercises it far more heavily; treat that as
+a hypothesis until the M4 `perf` reports are reviewed.
 
 ## Next milestone
 
