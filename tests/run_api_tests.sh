@@ -26,9 +26,8 @@ while [[ $# -gt 0 ]]; do
       cat <<'USAGE'
 Usage: ./tests/run_api_tests.sh [--profile PROFILE] [--sanitize]
 
-Profiles are defined in scripts/build_profiles.sh. The current production
-encoder is x86-only, so aarch64-neon becomes runnable after the NEON backend
-lands; the profile is defined now so the same test harness can be reused.
+Profiles are defined in scripts/build_profiles.sh. The aarch64-neon profile
+targets the production native NEON backend with the generic ARMv8-A baseline.
 USAGE
       exit 0
       ;;
