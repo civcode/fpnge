@@ -28,18 +28,6 @@ static FORCE_INLINE bool AllZeroPrefix(uint8x16_t value, size_t count) {
   return true;
 }
 
-static FORCE_INLINE bool AllMaskPrefix(uint8x16_t value, size_t count) {
-  if (count == 16) {
-    return vminvq_u8(value) == 0xff;
-  }
-  alignas(16) uint8_t bytes[16];
-  vst1q_u8(bytes, value);
-  for (size_t i = 0; i < count; ++i) {
-    if (bytes[i] != 0xff) return false;
-  }
-  return true;
-}
-
 template <size_t predictor>
 static FORCE_INLINE uint8x16_t
 PredictVec(const unsigned char *current_buf, const unsigned char *top_buf,
