@@ -39,10 +39,8 @@
 
 #if FPNGE_ARCH_X86_64
 #include "internal/simd_x86.h"
-#elif FPNGE_ARCH_AARCH64
-#include "internal/simd_sse2neon.h"
-#else
-#error "FPNGE currently supports x86-64 and the ARM64 feasibility prototype"
+#elif !FPNGE_ARCH_AARCH64
+#error "FPNGE currently supports x86-64 and AArch64"
 #endif
 
 #if FPNGE_ARCH_X86_64 && defined(__PCLMUL__)
@@ -387,13 +385,10 @@ static void UpdateAdler32(uint32_t &s1, uint32_t &s2, uint8_t byte) {
 }
 
 #if FPNGE_ARCH_AARCH64
-#define FPNGE_KERNEL_NAMESPACE arm_sse2neon
-#endif
-#include "internal/kernels_x86.h"
-#if FPNGE_ARCH_AARCH64
-#undef FPNGE_KERNEL_NAMESPACE
-namespace kernels = arm_sse2neon;
+#include "internal/kernels_neon.h"
+namespace kernels = neon;
 #else
+#include "internal/kernels_x86.h"
 namespace kernels = x86;
 #endif
 
