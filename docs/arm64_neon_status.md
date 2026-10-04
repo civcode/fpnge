@@ -57,7 +57,7 @@ Implemented on `arm64-neon`:
 The suspected 16-bit, three-channel BGR scalar-tail defect was confirmed and
 fixed separately in commit `5e45e4751cf79a32b948e6ffb5a4ffafeae56662`.
 
-The deterministic API suite currently contains 901 encode/decode cases, and the
+The deterministic API suite currently contains 903 encode/decode cases, and the
 portable CRC suite contains 32,800 length/alignment cases.
 
 ## Milestone M2 status
@@ -94,14 +94,36 @@ Repository-side feasibility implementation is complete:
 
 See `docs/m3_feasibility.md`.
 
-The **M3 decision gate remains pending native Pi 4 and Pi 5 runs**. GitHub-hosted
-ARM64 correctness is useful, but its performance data is not a substitute for
-Cortex-A72/A76 measurements.
+A clean native Pi 5 / Cortex-A76 capture is now available and was used to
+prioritize M4. The original two-device M3 decision gate still needs a Pi 4 /
+Cortex-A72 capture if it is to be closed exactly as written.
+
+## Milestone M4 status
+
+Repository-side native NEON implementation has landed:
+
+- production AArch64 selection now uses `internal/kernels_neon.h`;
+- SSE2NEON is no longer part of the production AArch64 include path;
+- predictor, Paeth, zero-run, LUT/cost, Adler, Huffman packing, symbol count,
+  and BGR/RGB conversion paths have native NEON implementations;
+- portable CRC remains the generic ARM checksum backend;
+- a static backend guard rejects accidental SSE/SSE2NEON dependencies;
+- native ARM64 correctness and sanitizer jobs are defined in the manual test
+  workflow;
+- `scripts/m4_pi_capture.sh` captures correctness-adjacent ISA metadata,
+  throughput, counters, and profiles for the same M3 workload matrix.
+
+See `docs/m4_native_neon.md`.
+
+The **M4 implementation is landed, but the M4 exit gate remains pending native
+AArch64 execution of the 903-case API suite, ARM sanitizer run, and M4 Pi
+performance capture**. No speedup is claimed until those measurements exist.
 
 ## Next milestone
 
-M4 is the native NEON implementation. Do not start performance-driven M4 work
-until the M3 Pi captures identify the actual translated hot spots.
+Do not begin M5 checksum acceleration until the M4 native run is profiled.
+Portable CRC was material in the M3 noise profile, but M5 is conditional on
+the post-M4 profile.
 
 ## M3 Pi 5 bring-up finding
 

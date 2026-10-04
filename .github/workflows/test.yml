@@ -1,8 +1,6 @@
 name: Run tests
 on:
   workflow_dispatch:
-  push:
-    branches: [arm64-neon]
 
 jobs:
   build-and-test:

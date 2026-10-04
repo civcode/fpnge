@@ -1,0 +1,101 @@
+# Milestone M4: native AArch64 NEON backend
+
+M4 replaces the disposable SSE2NEON feasibility route with a production
+AArch64 kernel backend written directly against Arm Advanced SIMD/NEON.
+
+## Backend selection
+
+The shared encoder continues to call the codec-level kernel seam:
+
+- `kernels::CopyRow`
+- `kernels::CollectSymbolCounts`
+- `kernels::EncodeOneRow`
+- `kernels::kSimdWidth`
+
+On x86-64 these resolve to `internal/kernels_x86.h`. On AArch64 they now
+resolve to `internal/kernels_neon.h`. The public API and PNG orchestration in
+`fpnge.cc` are unchanged.
+
+The generic ARM profile remains `-march=armv8-a`. CRC32 and PMULL are not
+required and the portable CRC backend remains the default on AArch64.
+
+## Native kernel implementation
+
+The M4 backend follows the roadmap and the Pi 5 M3 profile ordering.
+
+### Predictor and zero-run
+
+- 16-byte `uint8x16_t` row processing.
+- Sub and Up predictors use native byte subtraction.
+- Average uses `vhaddq_u8`, which directly implements the required floor
+  average.
+- Paeth uses native min/max, saturating subtract, compare, and bit select while
+  preserving PNG tie order.
+- Full-vector zero runs use AArch64 horizontal max; tails use exact prefix
+  checks.
+
+### Lookup and predictor cost
+
+- First/last 16 literal tables use `vqtbl1q_u8`.
+- Signed residual range classification is performed directly as signed NEON
+  comparisons.
+- Approximate and best-predictor reductions use deterministic widening sums.
+
+### Adler-32
+
+Each 16-byte chunk computes both the byte sum and weighted byte sum with native
+widening multiply/reduction operations. The existing 5500-byte modulo flush
+policy is retained.
+
+### Huffman packing
+
+Literal classification and lookup are vectorized with NEON. Codes are then
+packed from their required DEFLATE bit representation in bounded groups rather
+than reproducing the SSE variable-shift/float-emulation sequence. This keeps
+the bitstream semantics explicit and leaves headroom for `BitWriter`'s
+partial-byte buffer.
+
+### BGR/RGB conversion
+
+- 8-bit 3/4-channel conversion uses interleaved NEON loads/stores.
+- 16-bit conversion operates on bytes so odd input offsets remain valid.
+- 4-channel 16-bit data uses a native table permutation.
+- 3-channel 16-bit data uses three byte vectors and native table lookups.
+- Scalar tails remain the reference for incomplete vectors.
+
+## M3 profile input
+
+The clean cooled Pi 5 M3 capture at commit
+`c74eb8045528e6b7f9b8690e20641ea4de85e3a4` established roughly 54.4 MP/s
+for the UI workload and 45.3 MP/s for noise with the translated backend.
+`SelectPredictor` and the row-encode path dominated the profile, so those
+paths are the first native implementation targets. Portable CRC was material
+on noise but remains deferred to M5 as planned.
+
+These M3 numbers are comparison baselines, not claims about M4 speed.
+
+## Validation
+
+Run on native AArch64:
+
+```bash
+./scripts/check_aarch64_native_backend.sh
+./tests/run_api_tests.sh --profile aarch64-neon
+./tests/run_api_tests.sh --profile aarch64-neon --sanitize
+
+./build.sh --profile aarch64-neon
+./scripts/check_aarch64_baseline.sh ./build/fpnge
+```
+
+Capture M4 performance and profiles with:
+
+```bash
+FPNGE_M4_WARMUP=10 \
+FPNGE_M4_ITERATIONS=60 \
+./scripts/m4_pi_capture.sh
+```
+
+The M4 exit gate is not satisfied merely by landing the source. It requires
+native correctness and sanitizer passes, a clean generic-ISA audit, and target
+hardware performance showing a positive trend or a specific tractable
+remaining hotspot.
