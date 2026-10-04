@@ -12,8 +12,9 @@ B="${TMP_DIR}/b.tar.gz"
 
 cmp "${A}" "${B}"
 
+tar -tzf "${A}" > "${TMP_DIR}/files.txt"
 for required in fpnge.cc fpnge.h LICENSE README.md docs/m6_validation.md; do
-  if ! tar -tzf "${A}" | grep -Eq "/${required//./\.}$"; then
+  if ! grep -Eq "/${required//./\.}$" "${TMP_DIR}/files.txt"; then
     echo "Package missing required file: ${required}" >&2
     exit 1
   fi
