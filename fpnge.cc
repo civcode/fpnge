@@ -46,7 +46,8 @@
 #error "FPNGE currently supports x86-64 and AArch64"
 #endif
 
-#if FPNGE_ARCH_X86_64 && defined(__PCLMUL__)
+#if FPNGE_ARCH_X86_64 && defined(__PCLMUL__) && \
+    !defined(FPNGE_FORCE_PORTABLE_CRC)
 #include "internal/crc_x86.h"
 #else
 #include "internal/crc_portable.h"
@@ -54,7 +55,8 @@
 
 namespace {
 
-#if FPNGE_ARCH_X86_64 && defined(__PCLMUL__)
+#if FPNGE_ARCH_X86_64 && defined(__PCLMUL__) && \
+    !defined(FPNGE_FORCE_PORTABLE_CRC)
 using Crc32 = fpnge_internal::Crc32X86;
 #else
 using Crc32 = fpnge_internal::Crc32Portable;

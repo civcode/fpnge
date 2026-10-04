@@ -18,13 +18,16 @@ fpnge_set_build_profile() {
     x86-avx2)
       FPNGE_PROFILE_CXXFLAGS=(-mavx2 -mbmi2 -mpclmul)
       ;;
+    x86-sse41-portable-crc)
+      FPNGE_PROFILE_CXXFLAGS=(-msse4.1 -DFPNGE_FORCE_PORTABLE_CRC)
+      ;;
     aarch64-neon)
       # Advanced SIMD/NEON is part of the AArch64 baseline.
       FPNGE_PROFILE_CXXFLAGS=(-march=armv8-a)
       ;;
     *)
       echo "Unknown FPNGE build profile: ${profile}" >&2
-      echo "Expected one of: native, x86-sse41, x86-avx2, aarch64-neon" >&2
+      echo "Expected one of: native, x86-sse41, x86-avx2, x86-sse41-portable-crc, aarch64-neon" >&2
       return 2
       ;;
   esac
@@ -39,7 +42,7 @@ fpnge_profile_host_supported() {
     native)
       return 0
       ;;
-    x86-sse41|x86-avx2)
+    x86-sse41|x86-avx2|x86-sse41-portable-crc)
       [[ "${machine}" == "x86_64" || "${machine}" == "amd64" ]]
       ;;
     aarch64-neon)
