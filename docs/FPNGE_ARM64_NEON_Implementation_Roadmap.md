@@ -142,16 +142,16 @@ Do not expose every load, blend, unpack, shift, or shuffle as a public internal 
 
 ## 4. Roadmap at a glance
 
-| Milestone | Scope | Main output | Suggested effort | Exit gate |
-|---|---|---|---:|---|
-| M0 | Baseline and measurement | Reproducible x86/ARM baseline package | 2-4 days | Exact SHAs, green baseline, benchmark protocol |
-| M1 | Correctness hardening | API-level regression/property harness | 4-7 days | Boundary/mode matrix green; independent decode |
-| M2 | x86 architecture seams | Shared control flow + x86 kernels | 5-8 days | Byte/output parity and no material x86 regression |
-| M3 | ARM feasibility prototype | sse2neon or minimal translated build | 2-4 days | Native Pi performance/feasibility decision |
-| M4 | Native NEON | Production AArch64 kernel backend | 7-12 days | Full correctness matrix and target speedup trend |
-| M5 | ARM checksum (conditional) | CRC32/PMULL backend | 3-6 days | Measured win, safe feature gating |
-| M6 | CI, native soak, packaging | Multi-arch CI + sustained validation | 4-7 days | ARM/x86 green; soak and thermal data |
-| M7 | Integration/upstream | RenderModule pin + upstream PR series | 3-5 days | Reviewable commits and integration evidence |
+| Milestone | Scope | Main output | Exit gate |
+|---|---|---|---|
+| M0 | Baseline and measurement | Reproducible x86/ARM baseline package | Exact SHAs, green baseline, benchmark protocol |
+| M1 | Correctness hardening | API-level regression/property harness | Boundary/mode matrix green; independent decode |
+| M2 | x86 architecture seams | Shared control flow + x86 kernels | Byte/output parity and no material x86 regression |
+| M3 | ARM feasibility prototype | sse2neon or minimal translated build | Native Pi performance/feasibility decision |
+| M4 | Native NEON | Production AArch64 kernel backend | Full correctness matrix and target speedup trend |
+| M5 | ARM checksum (conditional) | CRC32/PMULL backend | Measured win, safe feature gating |
+| M6 | CI, native soak, packaging | Multi-arch CI + sustained validation | ARM/x86 green; soak and thermal data |
+| M7 | Integration/upstream | RenderModule pin + upstream PR series | Reviewable commits and integration evidence |
 
 **Total planning range:** 27-47 engineering days for M0-M7 when M5 is needed. Without ARM checksum work, plan roughly 24-41 days. These are engineering-effort ranges, not calendar commitments.
 
