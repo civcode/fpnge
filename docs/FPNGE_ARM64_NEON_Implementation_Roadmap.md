@@ -22,7 +22,6 @@ The recommended implementation sequence is therefore:
 6. Profile first, then add ARM CRC32 and PMULL only when data justifies them.
 7. Add native ARM64 CI/soak coverage, integrate the fork in RenderModule, and package the change as a small upstream PR series.
 
-A realistic planning range for one experienced SIMD/C++ engineer is **about 27-47 engineering days** through an upstream-ready patch set, excluding maintainer review latency and hardware procurement. The checksum optimization phase is optional and should be entered only after profiling.
 
 ## 2. What the source review changes from the original plan
 
