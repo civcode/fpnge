@@ -35,7 +35,26 @@ bool RunOne(uint32_t &state, size_t count) {
         }
       });
 
-  return expected == actual;
+  if (expected != actual) return false;
+
+  for (size_t i = 0; i + 4 <= count; i += 4) {
+    uint32_t packed_nbits = 0;
+    const uint64_t packed = fpnge_internal::PackFourCodes(
+        nbits.data() + i, bits.data() + i, &packed_nbits);
+    uint32_t expected_nbits = 0;
+    uint64_t expected_packed = 0;
+    for (size_t j = 0; j < 4; ++j) {
+      const uint32_t n = nbits[i + j];
+      const uint64_t mask = (uint64_t{1} << n) - 1;
+      expected_packed |=
+          (static_cast<uint64_t>(bits[i + j]) & mask) << expected_nbits;
+      expected_nbits += n;
+    }
+    if (packed_nbits != expected_nbits || packed != expected_packed) {
+      return false;
+    }
+  }
+  return true;
 }
 
 }  // namespace

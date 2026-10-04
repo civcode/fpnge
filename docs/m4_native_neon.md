@@ -116,3 +116,22 @@ likely suspect from code shape is the literal/Huffman packing path, but that is
 not yet a measured attribution.
 
 The M4 exit gate therefore remains open on performance only.
+
+## Pi 5 M4 performance regression attribution
+
+The first native M4 capture showed the noise workload falling to about
+29.4 MP/s while UI improved to about 55.8 MP/s. The accompanying perf profile
+attributes the regression directly to the literal encode callback:
+`WriteLiteralChunk` accounts for roughly 60% of noise cycles, and the enclosing
+literal callback accounts for roughly 67%.
+
+Relative to the M3 translated backend, the 1280x720 noise run increased from
+about 8.26 billion to 13.25 billion retired instructions and from about
+547 million to 1.97 billion branches. Cache-miss rate remained low. This
+isolates the regression to the first semantic packer implementation rather than
+CRC, predictor selection, or memory behavior.
+
+The hot full-vector path now constructs code lengths and bits with NEON table
+lookups and packs four symbols at a time with an unrolled branchless helper.
+The generic semantic sequence packer remains as the randomized reference and
+is used only for the final partial vector.

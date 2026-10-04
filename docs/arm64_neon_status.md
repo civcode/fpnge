@@ -157,3 +157,16 @@ explicit little-endian byte loads, removing both the alignment UB and the
 native-endian load assumption. Sanitizer builds also use
 `-fno-sanitize-recover=all`, and the CRC/bit-pack unit tests are compiled with
 the sanitizer flags so future findings fail the test command immediately.
+
+## M4 noise regression profiling
+
+The uploaded Pi 5 M4 perf capture measured the regression rather than merely
+inferring it. For 1280x720 noise, the native literal encode callback consumed
+about 67% of sampled cycles and `WriteLiteralChunk` about 60%. Compared with
+M3, retired instructions rose from roughly 8.26B to 13.25B and branches from
+roughly 547M to 1.97B, while cache misses remained low.
+
+The full-vector native literal path has therefore been rewritten to eliminate
+the per-symbol semantic packing loop: NEON produces the length/code vectors and
+a branchless four-code helper emits four bounded writes per 16-byte vector.
+The scalar semantic packer remains the reference/tail implementation.

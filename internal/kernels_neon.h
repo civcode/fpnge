@@ -330,56 +330,73 @@ static uint8_t SelectPredictor(size_t bytes_per_line,
   return predictor;
 }
 
+static FORCE_INLINE void WriteFourLiteralCodes(
+    const uint8_t *nbits, const uint16_t *bits,
+    BitWriter *__restrict writer) {
+  uint32_t count;
+  const uint64_t packed =
+      fpnge_internal::PackFourCodes(nbits, bits, &count);
+  writer->Write(count, packed);
+}
+
 static FORCE_INLINE void WriteLiteralChunk(uint8x16_t bytes, size_t count,
                                            const HuffmanTable &table,
                                            BitWriter *__restrict writer) {
-  const uint8x16_t index = vandq_u8(bytes, vdupq_n_u8(0x0f));
-  const uint8x16_t low_n =
-      vqtbl1q_u8(vld1q_u8(table.first16_nbits), index);
-  const uint8x16_t high_n =
-      vqtbl1q_u8(vld1q_u8(table.last16_nbits), index);
-  const uint8x16_t low_bits =
-      vqtbl1q_u8(vld1q_u8(table.first16_bits), index);
-  const uint8x16_t high_bits =
-      vqtbl1q_u8(vld1q_u8(table.last16_bits), index);
+  const uint8x16_t low_nibble = vandq_u8(bytes, vdupq_n_u8(0x0f));
+  const uint8x16_t high_nibble = vshrq_n_u8(bytes, 4);
   const int8x16_t signed_bytes = vreinterpretq_s8_u8(bytes);
   const uint8x16_t negative = vcltq_s8(signed_bytes, vdupq_n_s8(0));
   const uint8x16_t range = LiteralRangeMask(bytes);
 
-  if (AllMaskPrefix(range, count)) {
-    alignas(16) uint8_t nbits[16];
-    alignas(16) uint8_t bits[16];
-    vst1q_u8(nbits, vbslq_u8(negative, high_n, low_n));
-    vst1q_u8(bits, vbslq_u8(negative, high_bits, low_bits));
-    fpnge_internal::PackCodeSequence(
-        nbits, bits, count,
-        [&](uint32_t n, uint64_t packed) { writer->Write(n, packed); });
+  const uint8x16_t low_nbits =
+      vqtbl1q_u8(vld1q_u8(table.first16_nbits), low_nibble);
+  const uint8x16_t high_nbits =
+      vqtbl1q_u8(vld1q_u8(table.last16_nbits), low_nibble);
+  const uint8x16_t low_high_nbits =
+      vbslq_u8(negative, high_nbits, low_nbits);
+  const uint8x16_t nbits_vec =
+      vbslq_u8(range, low_high_nbits, vdupq_n_u8(table.mid_nbits));
+
+  const uint8x16_t low_bits =
+      vqtbl1q_u8(vld1q_u8(table.first16_bits), low_nibble);
+  const uint8x16_t high_bits =
+      vqtbl1q_u8(vld1q_u8(table.last16_bits), low_nibble);
+  const uint8x16_t low_high_bits =
+      vbslq_u8(negative, high_bits, low_bits);
+  const uint8x16_t mid_low_bits =
+      vqtbl1q_u8(vld1q_u8(table.mid_lowbits), high_nibble);
+  const uint8x16_t bits_low8 =
+      vbslq_u8(range, low_high_bits, mid_low_bits);
+
+  const uint8x16_t reversed_nibble =
+      vqtbl1q_u8(vld1q_u8(kBitReverseNibbleLookup), low_nibble);
+  const uint8x16_t mid_high4 =
+      vbslq_u8(range, vdupq_n_u8(0), reversed_nibble);
+
+  const int16x8_t mid_shift =
+      vdupq_n_s16(static_cast<int16_t>(table.mid_nbits - 4));
+  uint16x8_t bits0 = vmovl_u8(vget_low_u8(bits_low8));
+  uint16x8_t bits1 = vmovl_high_u8(bits_low8);
+  bits0 = vorrq_u16(
+      bits0, vshlq_u16(vmovl_u8(vget_low_u8(mid_high4)), mid_shift));
+  bits1 = vorrq_u16(
+      bits1, vshlq_u16(vmovl_high_u8(mid_high4), mid_shift));
+
+  alignas(16) uint8_t nbits[16];
+  alignas(16) uint16_t bits[16];
+  vst1q_u8(nbits, nbits_vec);
+  vst1q_u16(bits, bits0);
+  vst1q_u16(bits + 8, bits1);
+
+  if (count == 16) {
+    WriteFourLiteralCodes(nbits + 0, bits + 0, writer);
+    WriteFourLiteralCodes(nbits + 4, bits + 4, writer);
+    WriteFourLiteralCodes(nbits + 8, bits + 8, writer);
+    WriteFourLiteralCodes(nbits + 12, bits + 12, writer);
     return;
   }
 
-  alignas(16) uint8_t raw[16];
-  alignas(16) uint8_t nbits[16];
-  alignas(16) uint16_t bits[16];
-  vst1q_u8(raw, bytes);
-  for (size_t i = 0; i < count; ++i) {
-    const uint8_t b = raw[i];
-    if (b < 16) {
-      nbits[i] = table.first16_nbits[b];
-      bits[i] = table.first16_bits[b];
-    } else if (b >= 240) {
-      const uint8_t idx = b & 0x0f;
-      nbits[i] = table.last16_nbits[idx];
-      bits[i] = table.last16_bits[idx];
-    } else {
-      nbits[i] = table.mid_nbits;
-      const uint8_t hi = b >> 4;
-      const uint8_t lo = b & 0x0f;
-      bits[i] = static_cast<uint16_t>(
-          table.mid_lowbits[hi] |
-          (static_cast<uint16_t>(kBitReverseNibbleLookup[lo])
-           << (table.mid_nbits - 4)));
-    }
-  }
+  // Scalar grouping is retained only for the final partial vector of a row.
   fpnge_internal::PackCodeSequence(
       nbits, bits, count,
       [&](uint32_t n, uint64_t packed) { writer->Write(n, packed); });
