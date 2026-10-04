@@ -6,8 +6,6 @@
 #error "The native NEON kernel backend is only valid on AArch64"
 #endif
 
-#include "bit_pack.h"
-
 namespace neon {
 
 constexpr size_t kSimdWidth = 16;
