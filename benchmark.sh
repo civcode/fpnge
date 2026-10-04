@@ -13,6 +13,7 @@ Usage:
 Profiles:
   x86-sse41
   x86-avx2
+  x86-sse41-portable-crc
   aarch64-neon
 
 Example:
