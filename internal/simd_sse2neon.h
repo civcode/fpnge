@@ -11,7 +11,23 @@
 // Milestone M3 is deliberately a compatibility prototype. Baseline AArch64
 // includes Advanced SIMD/NEON, while optional CRC32/PMULL extensions remain
 // disabled by the generic -march=armv8-a build profile.
+//
+// Keep warnings from this pinned third-party compatibility header from being
+// promoted to errors by FPNGE's own -Werror test build. Do not suppress the
+// diagnostic for project code.
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif
 #include "../third_party/sse2neon/sse2neon.h"
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 #define MM(f) _mm_##f
 #define MMSI(f) _mm_##f##_si128
