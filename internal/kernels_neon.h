@@ -310,7 +310,7 @@ static uint8_t SelectPredictor(size_t bytes_per_line,
 
   assert(options->predictor == FPNGE_PREDICTOR_BEST);
   uint8_t predictor = 1;
-  size_t best_cost = ~size_t{0};
+  size_t best_cost = static_cast<size_t>(-1);
   TryPredictor<1, false>(bytes_per_line, current_row_buf, top_buf, left_buf,
                          topleft_buf, nullptr, table, best_cost, predictor);
   TryPredictor<2, false>(bytes_per_line, current_row_buf, top_buf, left_buf,
@@ -338,7 +338,9 @@ static FORCE_INLINE void PackCodes(const uint8_t *nbits, const Bits *bits,
       packed = 0;
       packed_nbits = 0;
     }
-    packed |= static_cast<uint64_t>(bits[i]) << packed_nbits;
+    const uint64_t code =
+        static_cast<uint64_t>(bits[i]) & ((uint64_t{1} << n) - 1);
+    packed |= code << packed_nbits;
     packed_nbits += n;
   }
   if (packed_nbits != 0) writer->Write(packed_nbits, packed);
@@ -546,13 +548,13 @@ void CopyRow(unsigned char *dst, const unsigned char *src, size_t nb_channels,
       vst4q_u8(dst + x * 4, px);
     }
   } else if (nb_channels == 4 && bytes_per_channel == 2) {
-    for (; x + 8 <= width; x += 8) {
-      uint16x8x4_t px =
-          vld4q_u16(reinterpret_cast<const uint16_t *>(src + x * 8));
-      const uint16x8_t tmp = px.val[0];
-      px.val[0] = px.val[2];
-      px.val[2] = tmp;
-      vst4q_u16(reinterpret_cast<uint16_t *>(dst + x * 8), px);
+    static constexpr uint8_t kSwap4x16[16] = {
+        4, 5, 2, 3, 0, 1, 6, 7, 12, 13, 10, 11, 8, 9, 14, 15,
+    };
+    const uint8x16_t shuffle = vld1q_u8(kSwap4x16);
+    for (; x + 2 <= width; x += 2) {
+      const uint8x16_t px = vld1q_u8(src + x * 8);
+      vst1q_u8(dst + x * 8, vqtbl1q_u8(px, shuffle));
     }
   } else if (nb_channels == 3 && bytes_per_channel == 1) {
     for (; x + 16 <= width; x += 16) {
@@ -563,13 +565,57 @@ void CopyRow(unsigned char *dst, const unsigned char *src, size_t nb_channels,
       vst3q_u8(dst + x * 3, px);
     }
   } else if (nb_channels == 3 && bytes_per_channel == 2) {
+    static constexpr uint8_t kS1A[16] = {
+        4, 5, 2, 3, 0, 1, 10, 11, 8, 9, 6, 7, 0xff, 0xff, 14, 15,
+    };
+    static constexpr uint8_t kS1B[16] = {
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0, 1, 0xff, 0xff,
+    };
+    static constexpr uint8_t kS2A[16] = {
+        12, 13, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    };
+    static constexpr uint8_t kS2B[16] = {
+        0xff, 0xff, 6, 7, 4, 5, 2, 3, 12, 13, 10, 11, 8, 9, 0xff, 0xff,
+    };
+    static constexpr uint8_t kS2C[16] = {
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 2, 3,
+    };
+    static constexpr uint8_t kS3B[16] = {
+        0xff, 0xff, 14, 15, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    };
+    static constexpr uint8_t kS3C[16] = {
+        0, 1, 0xff, 0xff, 8, 9, 6, 7, 4, 5, 14, 15, 12, 13, 10, 11,
+    };
+
+    const uint8x16_t s1a = vld1q_u8(kS1A);
+    const uint8x16_t s1b = vld1q_u8(kS1B);
+    const uint8x16_t s2a = vld1q_u8(kS2A);
+    const uint8x16_t s2b = vld1q_u8(kS2B);
+    const uint8x16_t s2c = vld1q_u8(kS2C);
+    const uint8x16_t s3b = vld1q_u8(kS3B);
+    const uint8x16_t s3c = vld1q_u8(kS3C);
+
     for (; x + 8 <= width; x += 8) {
-      uint16x8x3_t px =
-          vld3q_u16(reinterpret_cast<const uint16_t *>(src + x * 6));
-      const uint16x8_t tmp = px.val[0];
-      px.val[0] = px.val[2];
-      px.val[2] = tmp;
-      vst3q_u16(reinterpret_cast<uint16_t *>(dst + x * 6), px);
+      const uint8x16_t v1 = vld1q_u8(src + x * 6);
+      const uint8x16_t v2 = vld1q_u8(src + x * 6 + 16);
+      const uint8x16_t v3 = vld1q_u8(src + x * 6 + 32);
+
+      const uint8x16_t out1 =
+          vorrq_u8(vqtbl1q_u8(v1, s1a), vqtbl1q_u8(v2, s1b));
+      const uint8x16_t out2 =
+          vorrq_u8(vorrq_u8(vqtbl1q_u8(v1, s2a),
+                            vqtbl1q_u8(v2, s2b)),
+                   vqtbl1q_u8(v3, s2c));
+      const uint8x16_t out3 =
+          vorrq_u8(vqtbl1q_u8(v2, s3b), vqtbl1q_u8(v3, s3c));
+
+      vst1q_u8(dst + x * 6, out1);
+      vst1q_u8(dst + x * 6 + 16, out2);
+      vst1q_u8(dst + x * 6 + 32, out3);
     }
   }
 
