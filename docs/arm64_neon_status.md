@@ -187,3 +187,22 @@ and +13.9% noise. Encoded output sizes are unchanged.
 The Pi 5 M4 correctness, sanitizer, ISA, and performance gates are therefore
 green. The detailed roadmap's separate Pi 4 / Cortex-A72 validation remains
 outstanding if the full two-device gate is to be satisfied exactly as written.
+
+## M5 checksum decision after optimized M4 profile
+
+The optimized Pi 5 M4 profile at
+`b410b56294b5bea4886a46c5fbd593676bb7097f` does not expose portable CRC as
+a standalone hotspot in either the UI or noise perf report. The dominant
+measured work remains native row encoding and predictor selection. For the
+1280x720 noise workload, the optimized build retires about 7.56 billion
+instructions and 402 million branches, both below the corresponding M3
+translated-backend profile (~8.26 billion instructions and ~547 million
+branches), while delivering about 51.5 MP/s.
+
+Per the roadmap's conditional entry gate, M5 is therefore **not entered at this
+time**. Portable CRC remains the trusted production AArch64 checksum backend.
+Optional CRC32/PMULL acceleration can be revisited if later native soak or
+end-to-end profiling makes checksum work a measurable bottleneck.
+
+The next active milestone is M6: multi-architecture CI, native soak, and
+packaging.

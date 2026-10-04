@@ -153,3 +153,19 @@ temperatures below 50 C. Encoded output sizes match the prior M3/M4 captures.
 This closes the Pi 5 side of the M4 correctness/sanitizer/ISA/performance gate.
 A Pi 4 / Cortex-A72 run is still required to satisfy the detailed two-device
 roadmap gate exactly.
+
+## Conditional M5 decision
+
+The optimized post-fix M4 perf capture no longer identifies CRC as a measurable
+standalone hotspot. The top sampled symbols are still `EncodeOneRow`,
+`SelectPredictor`, and shared `FPNGEEncode` work; neither UI nor noise
+reports `Crc32Portable` as a separate hot symbol.
+
+For 1280x720 noise, the optimized M4 run retires about 7.56 billion
+instructions at 2.51 IPC with about 402 million branches and a 0.10% branch
+miss rate. This is lower than the M3 translated backend's roughly 8.26 billion
+instructions and 547 million branches while also being faster end-to-end.
+
+Because M5 is explicitly conditional on checksum work remaining material, the
+current evidence does not justify adding CRC32/PMULL dispatch complexity.
+Portable CRC stays as the AArch64 default and the roadmap proceeds to M6.
